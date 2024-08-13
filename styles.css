@@ -1,1 +1,73 @@
+#gameboard {
+    width: 400px;
+    height: 400px;
+    background-color: black;
+    display: flex;
+    flex-wrap: wrap;
+}
 
+#main-body-div {
+    margin: auto;
+    width: 40%;
+    padding: 40px;
+}
+
+.square {
+    width: 50px;
+    height: 50px;
+}
+
+.square svg {
+    height: 38px;
+    width: 38px;
+    margin: 5px;
+    position: relative;
+    z-index: -15;
+}
+
+path {
+    position: relative;
+    z-index: -16;
+}
+
+.piece {
+    position: relative;
+    z-index: 15;
+}
+
+.gray {
+    background-color: #A9A9A9;
+}
+
+.green {
+    background-color: #008000;
+}
+
+.black {
+    fill: #000000;
+}
+
+.white {
+    fill: #FFFFFF;
+}
+
+#promotion {
+    padding: 20px;
+}
+
+.choice {
+    width: 60px;
+    height: 60px;
+    margin: 15px;
+}
+
+.choice svg {
+    height: 40px;
+    width: 40px;
+    margin: -3px;
+}
+
+.checkmate-display {
+    padding-left: 30px;
+    padding-top: 30px;
+}
