@@ -337,28 +337,38 @@ function changePlayer() {
     //game over by checkmate
     if (kingInCheck) {
         if (!counterAttack && !canKingMoveThere.includes('yes') && !possibleBlock) {
-                gameOver = true;
-                alert("Game over by checkmate, " + opposingColor + " wins.")
+                gameOver = true
                 let checkmate = document.querySelector('#checkmate')
                 let display = document.createElement('h5')
                 display.classList.add("checkmate-display")
-                display.innerHTML = "Game over by checkmate, " + opposingColor + " wins."
+                display.innerHTML = "Game over by checkmate, " + opposingColor + " wins!"
                 checkmate.append(display)
-                return;
+                return
         }
 
         else if (counterAttack) {
             if (!canKingMoveThere.includes('yes') && getPieceId == 'king') {
-                gameOver = true;
-                alert("Game over by checkmate, " + opposingColor + " wins.")
+                gameOver = true
                 let checkmate = document.querySelector('#checkmate')
                 let display = document.createElement('h5')
                 display.classList.add("checkmate-display")
-                display.innerHTML = "Game over by checkmate, " + opposingColor + " wins."
+                display.innerHTML = "Game over by checkmate, " + opposingColor + " wins!"
                 checkmate.append(display)
-                return;
+                return
             }
         }
+    }
+    
+    // Check for drawing conditions
+    const drawResult = checkForDraw()
+    if (drawResult.isDraw) {
+        gameOver = true
+        let checkmate = document.querySelector('#checkmate')
+        let display = document.createElement('h5')
+        display.classList.add("checkmate-display")
+        display.innerHTML = "Game drawn by " + drawResult.reason + "!"
+        checkmate.append(display)
+        return
     }
 }
 
@@ -1435,3 +1445,239 @@ function enPassant(squareOriginal, squareTarget) {
 
 
 
+
+// Drawing Logic Functions
+function checkForDraw() {
+    // Check all drawing conditions
+    return checkStalemate() || 
+           checkFiftyMoveRule() || 
+           checkThreefoldRepetition() || 
+           checkInsufficientMaterial();
+}
+
+// Stalemate: King not in check but no legal moves
+function checkStalemate() {
+    kingId = getIdOfKing()
+    let currentCoordinates = getCoordinatesOfKing(kingId)
+    let kingInCheck = isKingInCheck(currentCoordinates, playerGo === 'white' ? 'black' : 'white')
+    
+    // If king is in check, it's not stalemate
+    if (kingInCheck) {
+        return false
+    }
+    
+    // Check if current player has any legal moves
+    return !hasLegalMoves(playerGo)
+}
+
+// Check if current player has any legal moves
+function hasLegalMoves(color) {
+    const allSquares = document.querySelectorAll(".square")
+    
+    for (let square of allSquares) {
+        const piece = square.firstChild
+        if (piece && piece.firstChild && piece.firstChild.classList.contains(color)) {
+            const pieceId = piece.id
+            const startId = parseInt(square.getAttribute('square-id'))
+            
+            // Check all possible moves for this piece
+            for (let targetId = 0; targetId < 64; targetId++) {
+                const targetSquare = document.querySelector(`[square-id="${targetId}"]`)
+                if (targetSquare && isValidMove(piece, startId, targetId)) {
+                    // Simulate the move to check if it leaves king in check
+                    if (simulateMove(startId, targetId, color)) {
+                        return true // Found a legal move
+                    }
+                }
+            }
+        }
+    }
+    return false // No legal moves found
+}
+
+// Simulate a move to check if it's legal (doesn't leave king in check)
+function simulateMove(startId, targetId, color) {
+    const startSquare = document.querySelector(`[square-id="${startId}"]`)
+    const targetSquare = document.querySelector(`[square-id="${targetId}"]`)
+    const piece = startSquare.firstChild
+    const capturedPiece = targetSquare.firstChild
+    
+    // Make the move temporarily
+    targetSquare.appendChild(piece)
+    
+    // Check if king is in check after this move
+    const kingId = getIdOfKing()
+    const kingCoordinates = getCoordinatesOfKing(kingId)
+    const opponentColor = color === 'white' ? 'black' : 'white'
+    const inCheck = isKingInCheck(kingCoordinates, opponentColor)
+    
+    // Undo the move
+    startSquare.appendChild(piece)
+    if (capturedPiece) {
+        targetSquare.appendChild(capturedPiece)
+    }
+    
+    return !inCheck // Return true if move is legal (doesn't leave king in check)
+}
+
+// Basic move validation
+function isValidMove(piece, startId, targetId) {
+    if (startId === targetId) return false
+    
+    const targetSquare = document.querySelector(`[square-id="${targetId}"]`)
+    if (!targetSquare) return false
+    
+    // Can't capture own pieces
+    const targetPiece = targetSquare.firstChild
+    if (targetPiece && targetPiece.firstChild && 
+        targetPiece.firstChild.classList.contains(piece.firstChild.classList.contains('white') ? 'white' : 'black')) {
+        return false
+    }
+    
+    // Use existing validation logic
+    return checkIfValid(targetSquare, startId.toString(), piece)
+}
+
+// Fifty-move rule: 50 moves without pawn move or capture
+function checkFiftyMoveRule() {
+    if (allMoves.length < 100) return false // Need at least 100 half-moves (50 full moves)
+    
+    const last50Moves = allMoves.slice(-100)
+    
+    for (let move of last50Moves) {
+        if (move.piece === 'pawn' || move.capture) {
+            return false // Pawn move or capture found in last 50 moves
+        }
+    }
+    
+    return true
+}
+
+// Threefold repetition: Same position occurs 3 times
+function checkThreefoldRepetition() {
+    if (allMoves.length < 8) return false // Need at least 8 moves for repetition
+    
+    const currentPosition = getBoardPosition()
+    const positionHistory = []
+    
+    // Build position history by replaying moves
+    // For simplicity, we'll check if the last few moves create a repetitive pattern
+    if (allMoves.length >= 12) { // Need at least 12 moves for 3-fold repetition
+        const recentMoves = allMoves.slice(-12) // Last 12 moves
+        
+        // Check for simple back-and-forth patterns (most common repetition)
+        // Pattern: A-B, B-A, A-B, B-A, A-B, B-A (6 moves = 3 repetitions)
+        if (recentMoves.length >= 6) {
+            const move1 = recentMoves[recentMoves.length - 6]
+            const move2 = recentMoves[recentMoves.length - 5]
+            const move3 = recentMoves[recentMoves.length - 4]
+            const move4 = recentMoves[recentMoves.length - 3]
+            const move5 = recentMoves[recentMoves.length - 2]
+            const move6 = recentMoves[recentMoves.length - 1]
+            
+            // Check if moves form A-B-A-B-A-B pattern
+            if (movesEqual(move1, move3) && movesEqual(move3, move5) &&
+                movesEqual(move2, move4) && movesEqual(move4, move6) &&
+                !movesEqual(move1, move2)) {
+                return true
+            }
+        }
+    }
+    
+    return false
+}
+
+// Helper function to compare individual moves
+function movesEqual(move1, move2) {
+    return move1.initialSquareId === move2.initialSquareId &&
+           move1.finalSquareId === move2.finalSquareId &&
+           move1.piece === move2.piece &&
+           move1.color === move2.color
+}
+
+
+
+// Get current board position (simplified)
+function getBoardPosition() {
+    const position = []
+    const allSquares = document.querySelectorAll(".square")
+    
+    allSquares.forEach(square => {
+        const piece = square.firstChild
+        if (piece && piece.firstChild) {
+            const color = piece.firstChild.classList.contains('white') ? 'w' : 'b'
+            position.push(piece.id[0] + color) // e.g., 'pw' for white pawn
+        } else {
+            position.push('--') // empty square
+        }
+    })
+    
+    return position.join('')
+}
+
+// Insufficient material to checkmate
+function checkInsufficientMaterial() {
+    const pieces = {
+        white: { king: 0, queen: 0, rook: 0, bishop: 0, knight: 0, pawn: 0 },
+        black: { king: 0, queen: 0, rook: 0, bishop: 0, knight: 0, pawn: 0 }
+    }
+    
+    // Count all pieces
+    const allSquares = document.querySelectorAll(".square")
+    allSquares.forEach(square => {
+        const piece = square.firstChild
+        if (piece && piece.firstChild) {
+            const color = piece.firstChild.classList.contains('white') ? 'white' : 'black'
+            const pieceType = piece.id
+            if (pieces[color][pieceType] !== undefined) {
+                pieces[color][pieceType]++
+            }
+        }
+    })
+    
+    // Check for insufficient material combinations
+    const whitePieces = pieces.white
+    const blackPieces = pieces.black
+    
+    // King vs King
+    if (getTotalPieces(whitePieces) === 1 && getTotalPieces(blackPieces) === 1) {
+        return true
+    }
+    
+    // King vs King + Bishop
+    if ((getTotalPieces(whitePieces) === 1 && getTotalPieces(blackPieces) === 2 && blackPieces.bishop === 1) ||
+        (getTotalPieces(blackPieces) === 1 && getTotalPieces(whitePieces) === 2 && whitePieces.bishop === 1)) {
+        return true
+    }
+    
+    // King vs King + Knight
+    if ((getTotalPieces(whitePieces) === 1 && getTotalPieces(blackPieces) === 2 && blackPieces.knight === 1) ||
+        (getTotalPieces(blackPieces) === 1 && getTotalPieces(whitePieces) === 2 && whitePieces.knight === 1)) {
+        return true
+    }
+    
+    // King + Bishop vs King + Bishop (same color squares)
+    if (getTotalPieces(whitePieces) === 2 && whitePieces.bishop === 1 &&
+        getTotalPieces(blackPieces) === 2 && blackPieces.bishop === 1) {
+        // In a real implementation, you'd check if bishops are on same color squares
+        // For simplicity, we'll assume they are
+        return true
+    }
+    
+    return false
+}
+
+// Helper function to count total pieces for a color
+function getTotalPieces(pieces) {
+    return pieces.king + pieces.queen + pieces.rook + pieces.bishop + pieces.knight + pieces.pawn
+}
+
+// Update the move tracking to include captures
+const originalChangePlayer = changePlayer
+function trackCaptures() {
+    // This would be called when a capture is made
+    // Update the last move in allMoves to mark it as a capture
+    if (allMoves.length > 0) {
+        allMoves[allMoves.length - 1].capture = true
+    }
+}

@@ -1,2 +1,2 @@
-# CS50-Final-Project
-CS50 Final Project
+# Design of chessboard using HTML, CSS and JavaScript
+
