@@ -1,2 +1,2 @@
-# Design of chessboard using HTML, CSS and JavaScript
+Design of chessboard using HTML, CSS and JavaScript
 
